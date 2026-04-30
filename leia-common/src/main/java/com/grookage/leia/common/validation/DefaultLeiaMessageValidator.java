@@ -209,7 +209,7 @@ public class DefaultLeiaMessageValidator implements LeiaMessageValidator {
 
 			@Override
 			public Boolean accept(DoubleAttribute attribute) {
-				return fieldNode.isDouble() || fieldNode.isFloat() || fieldNode.isInt();
+				return fieldNode.isDouble() || fieldNode.isFloat() || fieldNode.isInt() || fieldNode.isArray();
 			}
 
 			@Override
@@ -244,7 +244,7 @@ public class DefaultLeiaMessageValidator implements LeiaMessageValidator {
 
 			@Override
 			public Boolean accept(DateAttribute attribute) {
-				return fieldNode.isTextual() || fieldNode.isLong() || fieldNode.isInt();
+				return fieldNode.isTextual() || fieldNode.isNumber() || fieldNode.isArray();
 			}
 
 			@Override

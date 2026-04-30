@@ -62,10 +62,10 @@ public class SchemaValidationUtils {
 	                                       final ViolationContext violationContext,
 	                                       final TypeVariableContext typeVariableContext) {
 		violationContext.pushClass(klass);
-		final var fields = FieldUtils.getAllFields(klass);
-		validateSchemaStructure(validationType, attributes, fields, violationContext);
+		final var serializedNamesVsFieldMap = FieldUtils.getSerializedNameVsFieldMap(klass);
+		validateSchemaStructure(validationType, attributes, violationContext, serializedNamesVsFieldMap.keySet());
 		attributes.forEach(each -> {
-			final var field = FieldUtils.filter(each.getName(), fields);
+			final var field = FieldUtils.filter(each.getName(), serializedNamesVsFieldMap);
 			if (field.isEmpty()) {
 				violationContext.addViolation("Missing Field", each.getName());
 				return;
@@ -226,10 +226,10 @@ public class SchemaValidationUtils {
 
 	private void validateSchemaStructure(final SchemaValidationType validationType,
 	                                     final Set<SchemaAttribute> attributes,
-	                                     final List<Field> fields,
-	                                     final ViolationContext violationContext) {
-		final var fieldNames = fields.stream()
-				.map(Field::getName)
+	                                     final ViolationContext violationContext,
+										 final Set<String> serializedFieldNames) {
+		final var fieldNames = serializedFieldNames
+				.stream()
 				.map(String::toUpperCase)
 				.collect(Collectors.toSet());
 		final var attributesListed = attributes.stream()

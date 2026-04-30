@@ -16,7 +16,10 @@
 
 package com.grookage.leia.common.utils;
 
+import com.fasterxml.jackson.annotation.JsonAutoDetect;
 import com.fasterxml.jackson.annotation.JsonIgnore;
+import com.fasterxml.jackson.annotation.PropertyAccessor;
+import com.grookage.leia.models.utils.MapperUtils;
 import lombok.experimental.UtilityClass;
 
 import java.lang.reflect.Field;
@@ -25,6 +28,8 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Optional;
+import java.util.Map;
+import java.util.HashMap;
 
 @UtilityClass
 public class FieldUtils {
@@ -36,6 +41,22 @@ public class FieldUtils {
 					.forEach(fields::add);
 		}
 		return fields;
+	}
+
+	public Map<String, Field> getSerializedNameVsFieldMap(final Class<?> klass) {
+		Map<String, Field> fieldVsSerializedName = new HashMap<>();
+		final var mapper = MapperUtils.mapper().copy();
+		mapper.setVisibility(PropertyAccessor.FIELD, JsonAutoDetect.Visibility.ANY);
+		final var javaType = mapper.getTypeFactory().constructType(klass);
+		final var beanDesc = mapper.getSerializationConfig().introspect(javaType);
+
+		for(final var propDef: beanDesc.findProperties()){
+			final var member = propDef.getField();
+			if(member != null){
+				fieldVsSerializedName.put(propDef.getName(), member.getAnnotated());
+			}
+		}
+		return fieldVsSerializedName;
 	}
 
 	private boolean isNonSerializable(final Field field) {
@@ -51,5 +72,10 @@ public class FieldUtils {
 		return fields.stream()
 				.filter(each -> each.getName().equals(name))
 				.findFirst();
+	}
+
+	public Optional<Field> filter(final String name,
+								  final Map<String, Field> nameVsfieldMap){
+		return nameVsfieldMap.containsKey(name) ? Optional.of(nameVsfieldMap.get(name)) : Optional.empty();
 	}
 }

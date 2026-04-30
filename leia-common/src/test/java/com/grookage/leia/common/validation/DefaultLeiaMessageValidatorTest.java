@@ -396,4 +396,33 @@ class DefaultLeiaMessageValidatorTest {
 		assertFalse(errors.isEmpty());
 		assertEquals(1, errors.size(), "1 error for null zipcode");
 	}
+
+	@Test
+	void testDateFieldValidation() throws Exception {
+		// Dates can arrive as strings (ISO), numbers (timestamps), or arrays (LocalDate etc.)
+		final var jsonNode = ResourceHelper.getObjectMapper().readTree("""
+				{
+				    "dateAsString": "2025-01-15T10:30:00Z",
+				    "dateAsTimestamp": 1700000000000,
+				    "dateAsDecimal": 1736936400.0,
+				    "dateAsArray": [2025, 6, 20]
+				}
+				""");
+
+		final Set<SchemaAttribute> schemaAttributes = Set.of(
+				new DateAttribute("dateAsString", false, null),
+				new DateAttribute("dateAsTimestamp", false, null),
+				new DateAttribute("dateAsDecimal", false, null),
+				new DateAttribute("dateAsArray", false, null)
+		);
+
+		final var schemaDetails = SchemaDetails.builder()
+				.schemaKey(SCHEMA_KEY)
+				.attributes(schemaAttributes)
+				.validationType(SchemaValidationType.STRICT)
+				.build();
+
+		final var errors = validator.validate(schemaDetails, jsonNode);
+		assertTrue(errors.isEmpty(), "Date fields should pass validation, but got: " + errors);
+	}
 }

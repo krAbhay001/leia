@@ -50,9 +50,9 @@ public class FieldUtils {
 		final var javaType = mapper.getTypeFactory().constructType(klass);
 		final var beanDesc = mapper.getSerializationConfig().introspect(javaType);
 
-		for(final var propDef: beanDesc.findProperties()){
+		for (final var propDef : beanDesc.findProperties()) {
 			final var member = propDef.getField();
-			if(member != null){
+			if (member != null) {
 				fieldVsSerializedName.put(propDef.getName(), member.getAnnotated());
 			}
 		}

@@ -209,7 +209,7 @@ public class DefaultLeiaMessageValidator implements LeiaMessageValidator {
 
 			@Override
 			public Boolean accept(DoubleAttribute attribute) {
-				return fieldNode.isDouble() || fieldNode.isFloat() || fieldNode.isInt() || fieldNode.isArray();
+				return fieldNode.isDouble() || fieldNode.isFloat() || fieldNode.isInt();
 			}
 
 			@Override

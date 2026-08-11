@@ -30,7 +30,9 @@ import com.grookage.leia.models.schema.transformer.TransformationTarget;
 import com.grookage.leia.mux.DefaultMessageProcessor;
 import com.grookage.leia.mux.executor.MessageExecutor;
 import com.grookage.leia.mux.executor.MessageExecutorFactory;
+import com.grookage.leia.mux.filter.BackendFilter;
 import com.grookage.leia.mux.resolver.BackendNameResolver;
+import com.grookage.leia.mux.resolver.TagBasedNameResolver;
 import com.grookage.leia.mux.targetvalidator.DefaultTargetValidator;
 import com.grookage.leia.mux.targetvalidator.JsonRuleTargetValidator;
 import com.grookage.leia.mux.targetvalidator.TargetValidator;
@@ -44,211 +46,243 @@ import org.mockito.Mockito;
 
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 
 class LeiaMessageProduceClientTest {
 
-    private static final ObjectMapper mapper = new ObjectMapper();
-    private static final BackendNameResolver nameResolver = Mockito.mock(BackendNameResolver.class);
-    private static final MessageExecutorFactory executorFactory = Mockito.mock(MessageExecutorFactory.class);
-    private LeiaMessageProduceClient schemaClient;
-    private SchemaKey sourceSchema;
-    private SchemaKey targetSchema;
-    private SchemaDetails schemaDetails;
+	private static final ObjectMapper mapper = new ObjectMapper();
+	private static final BackendNameResolver nameResolver = Mockito.mock(BackendNameResolver.class);
+	private static final MessageExecutorFactory executorFactory = Mockito.mock(MessageExecutorFactory.class);
+	private LeiaMessageProduceClient schemaClient;
+	private SchemaKey sourceSchema;
+	private SchemaDetails schemaDetails;
+	private SchemaDetails targetSchemaDetails;
 
-    @SneakyThrows
-    @BeforeEach
-    void setUp() {
-        final var clientRefresher = Mockito.mock(LeiaClientRefresher.class);
-        final var schemaValidator = Mockito.mock(LeiaSchemaValidator.class);
-        sourceSchema = SchemaKey.builder()
-                .namespace("testNamespace")
-                .schemaName("testSchema")
-                .version("V1234")
-                .orgId("testOrg")
-                .type("default")
-                .tenantId("tenantId")
-                .build();
-        targetSchema = SchemaKey.builder()
-                .namespace("testNamespace")
-                .schemaName("testSchema")
-                .version("v")
-                .orgId("testOrg")
-                .type("default")
-                .tenantId("tenantId")
-                .build();
-        schemaDetails = ResourceHelper
-                .getResource("schema/schemaDetails.json", SchemaDetails.class);
-        Assertions.assertNotNull(schemaDetails);
-        Mockito.when(clientRefresher.getData()).thenAnswer(i -> List.of(schemaDetails));
-        Mockito.when(schemaValidator.getKlass(sourceSchema)).thenReturn(Optional.of(TestSchema.class));
-        Mockito.when(schemaValidator.getKlass(targetSchema)).thenReturn(Optional.of(TargetSchema.class));
-        Mockito.when(schemaValidator.valid(Mockito.any(SchemaKey.class))).thenReturn(true);
-        schemaClient = LeiaMessageProduceClient.builder()
-                .mapper(new ObjectMapper())
-                .refresher(clientRefresher)
-                .schemaValidator(schemaValidator)
-                .targetValidator(DefaultTargetValidator::new)
-                .build();
-        schemaClient.start();
-    }
+	@SneakyThrows
+	@BeforeEach
+	void setUp() {
+		final var clientRefresher = Mockito.mock(LeiaClientRefresher.class);
+		final var schemaValidator = Mockito.mock(LeiaSchemaValidator.class);
+		sourceSchema = SchemaKey.builder()
+				.namespace("testNamespace")
+				.schemaName("testSchema")
+				.version("V1234")
+				.orgId("testOrg")
+				.type("default")
+				.tenantId("tenantId")
+				.build();
+		final var targetSchema = SchemaKey.builder()
+				.namespace("testNamespace")
+				.schemaName("testSchema")
+				.version("v")
+				.orgId("testOrg")
+				.type("default")
+				.tenantId("tenantId")
+				.build();
+		schemaDetails = ResourceHelper
+				.getResource("schema/schemaDetails.json", SchemaDetails.class);
+		targetSchemaDetails = ResourceHelper
+				.getResource("schema/targetSchemaDetails.json", SchemaDetails.class);
+		Assertions.assertNotNull(schemaDetails);
+		Mockito.when(clientRefresher.getData()).thenAnswer(i -> List.of(schemaDetails, targetSchemaDetails));
+		Mockito.when(schemaValidator.getKlass(sourceSchema)).thenReturn(Optional.of(TestSchema.class));
+		Mockito.when(schemaValidator.getKlass(targetSchema)).thenReturn(Optional.of(TargetSchema.class));
+		Mockito.when(schemaValidator.valid(Mockito.any(SchemaKey.class))).thenReturn(true);
+		schemaClient = LeiaMessageProduceClient.builder()
+				.mapper(new ObjectMapper())
+				.refresher(clientRefresher)
+				.schemaValidator(schemaValidator)
+				.targetValidator(DefaultTargetValidator::new)
+				.build();
+		schemaClient.start();
+	}
 
-    @Test
-    void testLeiaMessageProduceClient() {
-        final var testSchema = TestSchema.builder()
-                .userName("testUser")
-                .schemaUnits(List.of(TestSchemaUnit.builder()
-                        .registeredName("testRegisteredName").build()))
-                .build();
-        schemaClient.processMessages(MessageRequest.builder()
-                .schemaKey(sourceSchema)
-                .message(mapper.valueToTree(testSchema))
-                .includeSource(true)
-                .build(), new DefaultMessageProcessor("Test", 10_000L, nameResolver, executorFactory) {
-            @Override
-            protected boolean validBackends(List<String> backends) {
-                return false;
-            }
+	@Test
+	void testLeiaMessageProduceClient() {
+		final var testSchema = TestSchema.builder()
+				.userName("testUser")
+				.schemaUnits(List.of(TestSchemaUnit.builder()
+						.registeredName("testRegisteredName").build()))
+				.build();
+		schemaClient.processMessages(
+				MessageRequest.builder()
+						.schemaKey(sourceSchema)
+						.message(mapper.valueToTree(testSchema))
+						.includeSource(true)
+						.build(),
+				new DefaultMessageProcessor("Test", 10_000L, nameResolver, executorFactory) {
+					@Override
+					protected boolean validBackends(Set<String> backends) {
+						return false;
+					}
 
-            @Override
-            protected boolean validExecutor(MessageExecutor executor) {
-                return false;
-            }
+					@Override
+					protected boolean validExecutor(MessageExecutor executor) {
+						return false;
+					}
 
-            @Override
-            public void processMessages(List<LeiaMessage> messages) {
-                Assertions.assertFalse(messages.isEmpty());
-                Assertions.assertEquals(2, messages.size());
-                final var testMessage = messages.stream()
-                        .filter(each -> each.getSchemaKey().getVersion().equalsIgnoreCase("v")).findFirst().orElse(null);
-                Assertions.assertNotNull(testMessage);
-                Assertions.assertEquals("TestName", testMessage.getMessage().get("officialName").asText());
-            }
-        }, null);
-    }
+					@Override
+					public void processMessages(List<LeiaMessage> messages, BackendFilter backendFilter) {
+						Assertions.assertFalse(messages.isEmpty());
+						Assertions.assertEquals(2, messages.size());
+						final var testMessage = messages.stream()
+								.filter(each -> each.getSchemaKey().getVersion().equalsIgnoreCase("v")).findFirst().orElse(null);
+						Assertions.assertNotNull(testMessage);
+						Assertions.assertEquals(Set.of("backend-TRANSFORMATION_BACKEND", "backend-BACKEND"), testMessage.getTags());
+						Assertions.assertEquals("TestName", testMessage.getMessage().get("officialName").asText());
+					}
+				}, null, null);
+	}
 
-    @Test
-    void testClientWithoutSourceMessage() {
-        final var testSchema = TestSchema.builder()
-                .userName("testUser")
-                .schemaUnits(List.of(TestSchemaUnit.builder()
-                        .registeredName("testRegisteredName").build()))
-                .build();
-        schemaClient.processMessages(MessageRequest.builder()
-                .schemaKey(sourceSchema)
-                .message(mapper.valueToTree(testSchema))
-                .includeSource(false)
-                .build(), new DefaultMessageProcessor("test", 10_000L, nameResolver, executorFactory) {
-            @Override
-            protected boolean validBackends(List<String> backends) {
-                return false;
-            }
+	@Test
+	void testClientWithoutSourceMessage() {
+		final var testSchema = TestSchema.builder()
+				.userName("testUser")
+				.schemaUnits(List.of(TestSchemaUnit.builder()
+						.registeredName("testRegisteredName").build()))
+				.build();
+		schemaClient.processMessages(MessageRequest.builder()
+				.schemaKey(sourceSchema)
+				.message(mapper.valueToTree(testSchema))
+				.includeSource(false)
+				.build(), new DefaultMessageProcessor("test", 10_000L, nameResolver, executorFactory) {
+			@Override
+			protected boolean validBackends(Set<String> backends) {
+				return false;
+			}
 
-            @Override
-            protected boolean validExecutor(MessageExecutor executor) {
-                return false;
-            }
+			@Override
+			protected boolean validExecutor(MessageExecutor executor) {
+				return false;
+			}
 
-            @Override
-            public void processMessages(List<LeiaMessage> messages) {
-                Assertions.assertFalse(messages.isEmpty());
-                Assertions.assertEquals(1, messages.size());
-                Assertions.assertEquals("testUser", messages.get(0).getMessage().get("name").asText());
-            }
-        }, null);
-    }
+			@Override
+			public void processMessages(List<LeiaMessage> messages, BackendFilter backendFilter) {
+				Assertions.assertFalse(messages.isEmpty());
+				Assertions.assertEquals(1, messages.size());
+				Assertions.assertEquals("testUser", messages.get(0).getMessage().get("name").asText());
+			}
+		}, null, null);
+	}
 
-    @Test
-    void testTargetValidator() {
-        final var testSchema = TestSchema.builder()
-                .userName("testUser")
-                .schemaUnits(List.of(TestSchemaUnit.builder()
-                        .registeredName("testRegisteredName").build()))
-                .build();
-        Assertions.assertNotNull(schemaClient.getTargetValidator());
-        Assertions.assertNotNull(schemaClient.getTargetValidator().get());
-        Assertions.assertTrue(schemaClient.getTargetValidator().get() instanceof DefaultTargetValidator);
-        final var messageRequest = MessageRequest.builder()
-                .schemaKey(sourceSchema)
-                .message(mapper.valueToTree(testSchema))
-                .includeSource(true)
-                .build();
-        var messages = schemaClient.getMessages(messageRequest, null);
-        Assertions.assertNotNull(messages);
-        Assertions.assertFalse(messages.isEmpty());
-        Assertions.assertEquals(2, messages.size());
-        final var testRetriever = new TargetValidator() {
-            @Override
-            public boolean validate(TransformationTarget transformationTarget, MessageRequest messageRequest, SchemaDetails schemaDetails) {
-                return false;
-            }
-        };
-        messages = schemaClient.getMessages(messageRequest, testRetriever);
-        Assertions.assertNotNull(messages);
-        Assertions.assertFalse(messages.isEmpty());
-        Assertions.assertEquals(1, messages.size());
-    }
+	@Test
+	void testTargetValidator() {
+		final var testSchema = TestSchema.builder()
+				.userName("testUser")
+				.schemaUnits(List.of(TestSchemaUnit.builder()
+						.registeredName("testRegisteredName").build()))
+				.build();
+		Assertions.assertNotNull(schemaClient.getTargetValidator());
+		Assertions.assertNotNull(schemaClient.getTargetValidator().get());
+		Assertions.assertTrue(schemaClient.getTargetValidator().get() instanceof DefaultTargetValidator);
+		final var messageRequest = MessageRequest.builder()
+				.schemaKey(sourceSchema)
+				.message(mapper.valueToTree(testSchema))
+				.includeSource(true)
+				.build();
+		var messages = schemaClient.getMessages(messageRequest, null);
+		Assertions.assertNotNull(messages);
+		Assertions.assertFalse(messages.isEmpty());
+		Assertions.assertEquals(2, messages.size());
+		final var testRetriever = new TargetValidator() {
+			@Override
+			public boolean validate(TransformationTarget transformationTarget, MessageRequest messageRequest, SchemaDetails schemaDetails) {
+				return false;
+			}
+		};
+		messages = schemaClient.getMessages(messageRequest, testRetriever);
+		Assertions.assertNotNull(messages);
+		Assertions.assertFalse(messages.isEmpty());
+		Assertions.assertEquals(1, messages.size());
+	}
 
-    @Test
-    void testTargetCriteria() {
-        final var otherClient = LeiaMessageProduceClient.builder()
-                .mapper(new ObjectMapper())
-                .refresher(schemaClient.getRefresher())
-                .schemaValidator(schemaClient.getSchemaValidator())
-                .targetValidator(JsonRuleTargetValidator::new)
-                .build();
-        otherClient.start();
-        schemaDetails.getTransformationTargets()
-                .forEach(each -> each.setCriteria(EqualsExpression.builder()
-                        .path("$.userName")
-                        .value("testUser")
-                        .build()));
-        final var testSchema = TestSchema.builder()
-                .userName("testUser")
-                .schemaUnits(List.of(TestSchemaUnit.builder()
-                        .registeredName("testRegisteredName").build()))
-                .build();
-        otherClient.processMessages(MessageRequest.builder()
-                .schemaKey(sourceSchema)
-                .message(mapper.valueToTree(testSchema))
-                .includeSource(true)
-                .build(), new DefaultMessageProcessor("Test", 10_000L, nameResolver, executorFactory) {
-            @Override
-            protected boolean validBackends(List<String> backends) {
-                return false;
-            }
+	@Test
+	void testTargetCriteria() {
+		final var otherClient = LeiaMessageProduceClient.builder()
+				.mapper(new ObjectMapper())
+				.refresher(schemaClient.getRefresher())
+				.schemaValidator(schemaClient.getSchemaValidator())
+				.targetValidator(JsonRuleTargetValidator::new)
+				.build();
+		otherClient.start();
+		schemaDetails.getTransformationTargets()
+				.forEach(each -> each.setCriteria(EqualsExpression.builder()
+						.path("$.userName")
+						.value("testUser")
+						.build()));
+		final var testSchema = TestSchema.builder()
+				.userName("testUser")
+				.schemaUnits(List.of(TestSchemaUnit.builder()
+						.registeredName("testRegisteredName").build()))
+				.build();
+		otherClient.processMessages(MessageRequest.builder()
+				.schemaKey(sourceSchema)
+				.message(mapper.valueToTree(testSchema))
+				.includeSource(true)
+				.build(), new DefaultMessageProcessor("Test", 10_000L, nameResolver, executorFactory) {
+			@Override
+			protected boolean validBackends(Set<String> backends) {
+				return false;
+			}
 
-            @Override
-            protected boolean validExecutor(MessageExecutor executor) {
-                return false;
-            }
+			@Override
+			protected boolean validExecutor(MessageExecutor executor) {
+				return false;
+			}
 
-            @Override
-            public void processMessages(List<LeiaMessage> messages) {
-                Assertions.assertFalse(messages.isEmpty());
-                Assertions.assertEquals(2, messages.size());
-            }
-        }, null);
-        testSchema.setUserName("testUserForInvalidTarget");
-        otherClient.processMessages(MessageRequest.builder()
-                .schemaKey(sourceSchema)
-                .message(mapper.valueToTree(testSchema))
-                .includeSource(true)
-                .build(), new DefaultMessageProcessor("Test", 10_000L, nameResolver, executorFactory) {
-            @Override
-            protected boolean validBackends(List<String> backends) {
-                return false;
-            }
+			@Override
+			public void processMessages(List<LeiaMessage> messages, BackendFilter backendFilter) {
+				Assertions.assertFalse(messages.isEmpty());
+				Assertions.assertEquals(2, messages.size());
+			}
+		}, null, null);
+		testSchema.setUserName("testUserForInvalidTarget");
+		otherClient.processMessages(MessageRequest.builder()
+				.schemaKey(sourceSchema)
+				.message(mapper.valueToTree(testSchema))
+				.includeSource(true)
+				.build(), new DefaultMessageProcessor("Test", 10_000L, nameResolver, executorFactory) {
+			@Override
+			protected boolean validBackends(Set<String> backends) {
+				return false;
+			}
 
-            @Override
-            protected boolean validExecutor(MessageExecutor executor) {
-                return false;
-            }
+			@Override
+			protected boolean validExecutor(MessageExecutor executor) {
+				return false;
+			}
 
-            @Override
-            public void processMessages(List<LeiaMessage> messages) {
-                Assertions.assertFalse(messages.isEmpty());
-                Assertions.assertEquals(1, messages.size());
-            }
-        }, null);
-    }
+			@Override
+			public void processMessages(List<LeiaMessage> messages, BackendFilter backendFilter) {
+				Assertions.assertFalse(messages.isEmpty());
+				Assertions.assertEquals(1, messages.size());
+			}
+		}, null, null);
+	}
+
+	@Test
+	void testBackendFilter() {
+		final var testSchema = TestSchema.builder()
+				.userName("testUser")
+				.schemaUnits(List.of(TestSchemaUnit.builder()
+						.registeredName("testRegisteredName").build()))
+				.build();
+		final var messageRequest = MessageRequest.builder()
+				.schemaKey(sourceSchema)
+				.message(mapper.valueToTree(testSchema))
+				.includeSource(false)
+				.build();
+		final var httpExecutor = Mockito.mock(MessageExecutor.class);
+		Mockito.when(executorFactory.getExecutor("TRANSFORMATION_BACKEND")).thenReturn(Optional.of(httpExecutor));
+		var messages = schemaClient.getMessages(messageRequest, null);
+		final var leiaMessages = messages.values().stream().toList();
+		Assertions.assertNotNull(leiaMessages);
+		Assertions.assertFalse(leiaMessages.isEmpty());
+		Assertions.assertEquals(1, leiaMessages.size());
+
+		schemaClient.processMessages(messageRequest,
+				new DefaultMessageProcessor("test", 10_000L, new TagBasedNameResolver(), executorFactory) {
+				}, null, backendName -> backendName.equals("TRANSFORMATION_BACKEND"));
+		Mockito.verify(httpExecutor, Mockito.times(1)).send(leiaMessages);
+	}
 }

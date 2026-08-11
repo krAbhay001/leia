@@ -24,6 +24,7 @@ import com.grookage.leia.http.processor.config.BackendType;
 import com.grookage.leia.http.processor.config.HttpBackendConfig;
 import com.grookage.leia.http.processor.config.LeiaHttpEndPoint;
 import com.grookage.leia.http.processor.exception.LeiaHttpErrorCode;
+import com.grookage.leia.http.processor.request.LeiaHttpEntity;
 import com.grookage.leia.http.processor.utils.HttpClientUtils;
 import com.grookage.leia.http.processor.utils.HttpRequestUtils;
 import com.grookage.leia.models.exception.LeiaException;
@@ -58,178 +59,182 @@ import java.util.function.UnaryOperator;
 @AllArgsConstructor
 @Slf4j
 @Getter
-public abstract class HttpMessageExecutor implements MessageExecutor {
+public abstract class HttpMessageExecutor<T> extends MessageExecutor {
 
-    private final String name;
-    private final HttpBackendConfig backendConfig;
-    private final Supplier<String> authSupplier;
-    private final ObjectMapper mapper;
-    private final Retryer<String> retryer;
-    private QueuedSender queuedSender;
+	private final String name;
+	private final HttpBackendConfig backendConfig;
+	private final Supplier<String> authSupplier;
+	private final ObjectMapper mapper;
+	private final Retryer<String> retryer;
+	private QueuedSender queuedSender;
 
-    protected HttpMessageExecutor(HttpBackendConfig backendConfig,
-                                  Supplier<String> authSupplier,
-                                  ObjectMapper mapper) {
-        this.name = backendConfig.getBackendName();
-        this.backendConfig = backendConfig;
-        this.authSupplier = authSupplier;
-        this.mapper = mapper;
-        this.retryer = RetryerBuilder.<String>newBuilder()
-                .retryIfExceptionOfType(HttpResponseException.class)
-                .withWaitStrategy(
-                        WaitStrategies.fixedWait(0, TimeUnit.MILLISECONDS))
-                .withStopStrategy(StopStrategies.stopAfterAttempt(backendConfig.getRetryCount()))
-                .withBlockStrategy(BlockStrategies.threadSleepStrategy())
-                .build();
-        if (backendConfig.getBackendType() == BackendType.QUEUED) {
-            this.queuedSender = new QueuedSender(backendConfig, mapper, messages -> {
-                executeRequest(messages);
-                return messages;
-            });
-        }
-    }
+	protected HttpMessageExecutor(HttpBackendConfig backendConfig,
+	                              Supplier<String> authSupplier,
+	                              ObjectMapper mapper) {
+		super();
+		this.name = backendConfig.getBackendName();
+		this.backendConfig = backendConfig;
+		this.authSupplier = authSupplier;
+		this.mapper = mapper;
+		this.retryer = RetryerBuilder.<String>newBuilder()
+				.retryIfExceptionOfType(HttpResponseException.class)
+				.withWaitStrategy(
+						WaitStrategies.fixedWait(0, TimeUnit.MILLISECONDS))
+				.withStopStrategy(StopStrategies.stopAfterAttempt(backendConfig.getRetryCount()))
+				.withBlockStrategy(BlockStrategies.threadSleepStrategy())
+				.build();
+		if (backendConfig.getBackendType() == BackendType.QUEUED) {
+			this.queuedSender = new QueuedSender(backendConfig, mapper, messages -> {
+				executeRequest(messages);
+				return messages;
+			});
+		}
+	}
 
-    public abstract Optional<LeiaHttpEndPoint> getEndPoint(HttpBackendConfig backendConfig);
+	public abstract T getRequestData(LeiaHttpEntity leiaHttpEntity);
 
-    @SneakyThrows
-    public void executeRequest(List<LeiaMessage> messages) {
-        try {
-            retryer.call(() -> {
-                final var requestData = HttpRequestUtils.toHttpEntity(messages, backendConfig);
-                final var endPoint = getEndPoint(backendConfig).orElse(null);
-                if (null == endPoint) {
-                    log.debug("No valid end point found for backendConfig {}", backendConfig);
-                    throw LeiaException.error(LeiaHttpErrorCode.INVALID_ENDPOINT);
-                }
-                final var httpUrl = new URIBuilder()
-                        .setScheme(endPoint.isSecure()
-                                ? "https"
-                                : "http")
-                        .setHost(endPoint.getHost())
-                        .setPort(endPoint.getPort() == 0
-                                ? endPoint.defaultPort()
-                                : endPoint.getPort())
-                        .setPath(endPoint.getUri())
-                        .build();
-                var request = Request.post(httpUrl)
-                        .body(new ByteArrayEntity(mapper.writeValueAsBytes(requestData), ContentType.APPLICATION_JSON))
-                        .addHeader("Authorization", authSupplier.get());
-                if (backendConfig.headersProvided()) {
-                    request = request.setHeaders(backendConfig.getHeaders()
-                            .entrySet().stream().map(each -> new BasicHeader(each.getKey(), each.getValue()))
-                            .toArray(BasicHeader[]::new));
-                }
-                final var response = HttpClientUtils.getExecutor().execute(request).handleResponse(httpResponse -> {
-                    final var code = httpResponse.getCode();
-                    if (code >= HttpStatus.SC_REDIRECTION) {
-                        throw new HttpResponseException(code, httpResponse.getReasonPhrase());
-                    }
-                    final var responseEntity = httpResponse.getEntity();
-                    return null == responseEntity ? null : EntityUtils.toString(responseEntity);
-                });
-                log.debug("Call to backend with backendConfig {} was successful and returned response {}", backendConfig, response);
-                return response;
-            });
-        } catch (Exception e) {
-            log.error("Sending to the backend {} has failed with exception {}", backendConfig, e.getMessage());
-            throw LeiaException.error(LeiaHttpErrorCode.EVENT_SEND_FAILED, e);
-        }
-    }
+	public abstract Optional<LeiaHttpEndPoint> getEndPoint(HttpBackendConfig backendConfig);
 
-    public void send(List<LeiaMessage> messages) {
-        final var backendType = backendConfig.getBackendType();
-        backendType.apply(new BackendType.BackendTypeVisitor() {
-            @Override
-            public void sync() {
-                executeRequest(messages);
-            }
+	@SneakyThrows
+	private void executeRequest(List<LeiaMessage> messages) {
+		try {
+			retryer.call(() -> {
+				final var leiaHttpEntity = HttpRequestUtils.toHttpEntity(messages, backendConfig);
+				final var requestData = getRequestData(leiaHttpEntity);
+				final var endPoint = getEndPoint(backendConfig).orElse(null);
+				if (null == endPoint) {
+					log.debug("No valid end point found for backendConfig {}", backendConfig);
+					throw LeiaException.error(LeiaHttpErrorCode.INVALID_ENDPOINT);
+				}
+				final var httpUrl = new URIBuilder()
+						.setScheme(endPoint.isSecure()
+								? "https"
+								: "http")
+						.setHost(endPoint.getHost())
+						.setPort(endPoint.getPort() == 0
+								? endPoint.defaultPort()
+								: endPoint.getPort())
+						.setPath(endPoint.getUri())
+						.build();
+				var request = Request.post(httpUrl)
+						.body(new ByteArrayEntity(mapper.writeValueAsBytes(requestData), ContentType.APPLICATION_JSON))
+						.addHeader("Authorization", authSupplier.get());
+				if (backendConfig.headersProvided()) {
+					request = request.setHeaders(backendConfig.getHeaders()
+							.entrySet().stream().map(each -> new BasicHeader(each.getKey(), each.getValue()))
+							.toArray(BasicHeader[]::new));
+				}
+				final var response = HttpClientUtils.getExecutor().execute(request).handleResponse(httpResponse -> {
+					final var code = httpResponse.getCode();
+					if (code >= HttpStatus.SC_REDIRECTION) {
+						throw new HttpResponseException(code, httpResponse.getReasonPhrase());
+					}
+					final var responseEntity = httpResponse.getEntity();
+					return null == responseEntity ? null : EntityUtils.toString(responseEntity);
+				});
+				log.debug("Call to backend with backendConfig {} was successful and returned response {}", backendConfig, response);
+				return response;
+			});
+		} catch (Exception e) {
+			log.error("Sending message to the backend {} has failed with exception {}", backendConfig.getBackendName(), e.getMessage(), e);
+			handleException(messages, e.getCause() != null ? (Exception) e.getCause() : e);
+		}
+	}
 
-            @Override
-            public void queued() {
-                Preconditions.checkNotNull(queuedSender, "QueuedSender can't be null in queued mode");
-                queuedSender.send(messages);
-            }
-        });
-    }
+	public void sendEnvelope(List<LeiaMessage> messages) {
+		final var backendType = backendConfig.getBackendType();
+		backendType.apply(new BackendType.BackendTypeVisitor() {
+			@Override
+			public void sync() {
+				executeRequest(messages);
+			}
 
-    public static class QueuedSender {
-        private final IBigQueue messageQueue;
-        private final ObjectMapper mapper;
+			@Override
+			public void queued() {
+				Preconditions.checkNotNull(queuedSender, "QueuedSender can't be null in queued mode");
+				queuedSender.send(messages);
+			}
+		});
+	}
 
-        @SneakyThrows
-        public QueuedSender(final HttpBackendConfig backendConfig,
-                            final ObjectMapper mapper,
-                            final UnaryOperator<List<LeiaMessage>> messageOperator) {
-            final var perms = PosixFilePermissions.fromString("rwxrwxrwx");
-            final var attr = PosixFilePermissions.asFileAttribute(perms);
-            Files.createDirectories(Paths.get(backendConfig.getQueuePath()), attr);
-            this.mapper = mapper;
-            this.messageQueue = new BigQueueImpl(backendConfig.getQueuePath(), backendConfig.getBackendName());
-            final var flushRunner = new FlushRunner(mapper, messageQueue, backendConfig, messageOperator);
-            final var scheduler = Executors.newScheduledThreadPool(2);
-            scheduler.scheduleWithFixedDelay(flushRunner, 0, 1, TimeUnit.SECONDS);
-            scheduler.scheduleWithFixedDelay(new GcRunner(messageQueue), 0, 15, TimeUnit.SECONDS);
-        }
+	public static class QueuedSender {
+		private final IBigQueue messageQueue;
+		private final ObjectMapper mapper;
 
-        @SneakyThrows
-        public void send(List<LeiaMessage> messages) {
-            this.messageQueue.enqueue(mapper.writeValueAsBytes(messages));
-        }
-    }
+		@SneakyThrows
+		public QueuedSender(final HttpBackendConfig backendConfig,
+		                    final ObjectMapper mapper,
+		                    final UnaryOperator<List<LeiaMessage>> messageOperator) {
+			final var perms = PosixFilePermissions.fromString("rwxrwxrwx");
+			final var attr = PosixFilePermissions.asFileAttribute(perms);
+			Files.createDirectories(Paths.get(backendConfig.getQueuePath()), attr);
+			this.mapper = mapper;
+			this.messageQueue = new BigQueueImpl(backendConfig.getQueuePath(), backendConfig.getBackendName());
+			final var flushRunner = new FlushRunner(mapper, messageQueue, backendConfig, messageOperator);
+			final var scheduler = Executors.newScheduledThreadPool(2);
+			scheduler.scheduleWithFixedDelay(flushRunner, 0, 1, TimeUnit.SECONDS);
+			scheduler.scheduleWithFixedDelay(new GcRunner(messageQueue), 0, 15, TimeUnit.SECONDS);
+		}
 
-    public static class FlushRunner implements Runnable {
+		@SneakyThrows
+		public void send(List<LeiaMessage> messages) {
+			this.messageQueue.enqueue(mapper.writeValueAsBytes(messages));
+		}
+	}
 
-        private final IBigQueue queue;
-        private final ObjectMapper mapper;
-        private final HttpBackendConfig backendConfig;
-        private final UnaryOperator<List<LeiaMessage>> messageOperator;
+	public static class FlushRunner implements Runnable {
 
-        public FlushRunner(ObjectMapper mapper,
-                           IBigQueue queue,
-                           HttpBackendConfig backendConfig,
-                           UnaryOperator<List<LeiaMessage>> messageOperator) {
-            this.queue = queue;
-            this.mapper = mapper;
-            this.backendConfig = backendConfig;
-            this.messageOperator = messageOperator;
-        }
+		private final IBigQueue queue;
+		private final ObjectMapper mapper;
+		private final HttpBackendConfig backendConfig;
+		private final UnaryOperator<List<LeiaMessage>> messageOperator;
 
-        @Override
-        public void run() {
-            try {
-                var messages = new ArrayList<LeiaMessage>();
-                while (messages.size() < backendConfig.getQueueThreshold() && !queue.isEmpty()) {
-                    final var dqMessages = mapper.readValue(queue.dequeue(), new TypeReference<List<LeiaMessage>>() {
-                    });
-                    messages.addAll(dqMessages);
-                }
+		public FlushRunner(ObjectMapper mapper,
+		                   IBigQueue queue,
+		                   HttpBackendConfig backendConfig,
+		                   UnaryOperator<List<LeiaMessage>> messageOperator) {
+			this.queue = queue;
+			this.mapper = mapper;
+			this.backendConfig = backendConfig;
+			this.messageOperator = messageOperator;
+		}
 
-                if (!messages.isEmpty()) {
-                    messageOperator.apply(messages);
-                }
-            } catch (Exception e) {
-                log.error("Queue flush failed for backend config {} with exception", backendConfig, e);
-                throw LeiaException.error(LeiaHttpErrorCode.QUEUE_SEND_FAILED);
-            }
-        }
-    }
+		@Override
+		public void run() {
+			try {
+				var messages = new ArrayList<LeiaMessage>();
+				while (messages.size() < backendConfig.getQueueThreshold() && !queue.isEmpty()) {
+					final var dqMessages = mapper.readValue(queue.dequeue(), new TypeReference<List<LeiaMessage>>() {
+					});
+					messages.addAll(dqMessages);
+				}
 
-    public static class GcRunner implements Runnable {
+				if (!messages.isEmpty()) {
+					messageOperator.apply(messages);
+				}
+			} catch (Exception e) {
+				log.error("Queue flush failed for backend config {} with exception", backendConfig, e);
+				throw LeiaException.error(LeiaHttpErrorCode.QUEUE_SEND_FAILED);
+			}
+		}
+	}
 
-        private final IBigQueue bigQueue;
+	public static class GcRunner implements Runnable {
 
-        public GcRunner(IBigQueue bigQueue) {
-            this.bigQueue = bigQueue;
-        }
+		private final IBigQueue bigQueue;
 
-        @Override
-        public void run() {
-            try {
-                log.info("Running BigQueue garbage collection");
-                bigQueue.gc();
-            } catch (Exception e) {
-                log.error("Failed to run BigQueue garbage collection", e);
-            }
-        }
-    }
+		public GcRunner(IBigQueue bigQueue) {
+			this.bigQueue = bigQueue;
+		}
+
+		@Override
+		public void run() {
+			try {
+				log.info("Running BigQueue garbage collection");
+				bigQueue.gc();
+			} catch (Exception e) {
+				log.error("Failed to run BigQueue garbage collection", e);
+			}
+		}
+	}
 }

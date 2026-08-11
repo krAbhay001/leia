@@ -19,8 +19,8 @@ package com.grookage.leia.models.schema.ingestion;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.grookage.leia.models.attributes.SchemaAttribute;
-import com.grookage.leia.models.schema.SchemaReference;
 import com.grookage.leia.models.schema.SchemaKey;
+import com.grookage.leia.models.schema.SchemaReference;
 import com.grookage.leia.models.schema.SchemaType;
 import com.grookage.leia.models.schema.SchemaValidationType;
 import com.grookage.leia.models.schema.transformer.TransformationTarget;
@@ -33,6 +33,7 @@ import javax.validation.Valid;
 import javax.validation.constraints.NotEmpty;
 import javax.validation.constraints.NotNull;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 
@@ -42,21 +43,21 @@ import java.util.Set;
 @Data
 @JsonIgnoreProperties(ignoreUnknown = true)
 public class CreateSchemaRequest {
-    @Builder.Default
-    List<String> tags = new ArrayList<>();
-    @NotNull
-    @Valid
-    private SchemaKey schemaKey;
-    @NotNull
-    private SchemaType schemaType;
-    private SchemaValidationType validationType = SchemaValidationType.MATCHING;
-    private String description;
-    @NotEmpty
-    private Set<SchemaAttribute> attributes;
+	@NotNull
+	@Valid
+	private SchemaKey schemaKey;
+	@NotNull
+	private SchemaType schemaType;
+	private SchemaValidationType validationType = SchemaValidationType.MATCHING;
+	private String description;
+	@NotEmpty
+	private Set<SchemaAttribute> attributes;
     SchemaReference parentReference;
     @Builder.Default
     List<SchemaReference> childReferences = new ArrayList<>();
-    @Builder.Default
-    private Set<TransformationTarget> transformationTargets = Set.of();
-    private JsonNode data;
+	@Builder.Default
+	private Set<TransformationTarget> transformationTargets = Set.of();
+	private JsonNode data;
+	@Builder.Default
+	Set<String> tags = new HashSet<>();
 }

@@ -25,13 +25,11 @@ import java.util.Optional;
 
 public interface SchemaRepository {
 
-    boolean createdRecordExists(final SchemaKey schemaKey);
+	void create(final SchemaDetails schema);
 
-    void create(final SchemaDetails schema);
+	void update(final SchemaDetails schema);
 
-    void update(final SchemaDetails schema);
+	Optional<SchemaDetails> get(final SchemaKey schemaKey);
 
-    Optional<SchemaDetails> get(final SchemaKey schemaKey);
-
-    List<SchemaDetails> getSchemas(final SearchRequest searchRequest);
+	List<SchemaDetails> getSchemas(final SearchRequest searchRequest);
 }

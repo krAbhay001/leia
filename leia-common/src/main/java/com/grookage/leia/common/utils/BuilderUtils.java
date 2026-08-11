@@ -38,57 +38,57 @@ import java.util.stream.Collectors;
 
 @UtilityClass
 public class BuilderUtils {
-    public SchemaAttribute buildPrimitiveAttribute(final Class<?> klass,
-                                                   final String name,
-                                                   final Set<QualifierInfo> qualifiers,
-                                                   final boolean optional) {
-        if (klass == Integer.class || klass == int.class) {
-            return new IntegerAttribute(name, optional, qualifiers);
-        }
-        if (klass == Boolean.class || klass == boolean.class) {
-            return new BooleanAttribute(name, optional, qualifiers);
-        }
-        if (klass == Double.class || klass == double.class) {
-            return new DoubleAttribute(name, optional, qualifiers);
-        }
-        if (klass == Long.class || klass == long.class) {
-            return new LongAttribute(name, optional, qualifiers);
-        }
-        if (klass == Float.class || klass == float.class) {
-            return new FloatAttribute(name, optional, qualifiers);
-        }
-        if (klass == Short.class || klass == short.class) {
-            return new ShortAttribute(name, optional, qualifiers);
-        }
-        if (klass == Character.class || klass == char.class) {
-            return new CharacterAttribute(name, optional, qualifiers);
-        }
-        if (klass == Byte.class || klass == byte.class) {
-            return new ByteAttribute(name, optional, qualifiers);
-        }
+	public SchemaAttribute buildPrimitiveAttribute(final Class<?> klass,
+	                                               final String name,
+	                                               final Set<QualifierInfo> qualifiers,
+	                                               final boolean optional) {
+		if (klass == Integer.class || klass == int.class) {
+			return new IntegerAttribute(name, optional, qualifiers);
+		}
+		if (klass == Boolean.class || klass == boolean.class) {
+			return new BooleanAttribute(name, optional, qualifiers);
+		}
+		if (klass == Double.class || klass == double.class) {
+			return new DoubleAttribute(name, optional, qualifiers);
+		}
+		if (klass == Long.class || klass == long.class) {
+			return new LongAttribute(name, optional, qualifiers);
+		}
+		if (klass == Float.class || klass == float.class) {
+			return new FloatAttribute(name, optional, qualifiers);
+		}
+		if (klass == Short.class || klass == short.class) {
+			return new ShortAttribute(name, optional, qualifiers);
+		}
+		if (klass == Character.class || klass == char.class) {
+			return new CharacterAttribute(name, optional, qualifiers);
+		}
+		if (klass == Byte.class || klass == byte.class) {
+			return new ByteAttribute(name, optional, qualifiers);
+		}
 
-        throw new UnsupportedOperationException("Unsupported primitive class type: " + klass.getName());
+		throw new UnsupportedOperationException("Unsupported primitive class type: " + klass.getName());
 
-    }
+	}
 
-    public Set<String> getEnumValues(final Class<?> klass) {
-        return Arrays.stream(klass.getEnumConstants())
-                .map(enumConstant -> ((Enum<?>) enumConstant).name())
-                .collect(Collectors.toSet());
-    }
+	public Set<String> getEnumValues(final Class<?> klass) {
+		return Arrays.stream(klass.getEnumConstants())
+				.map(enumConstant -> ((Enum<?>) enumConstant).name())
+				.collect(Collectors.toSet());
+	}
 
 
     public List<Field> getFields(Class<?> klass) {
         // Handling concrete classes and abstract classes with no parent classes
         if (Objects.isNull(klass.getSuperclass()) || klass.getSuperclass().equals(Object.class)) {
-            return ReflectionUtils.getAllFields(klass);
+            return FieldUtils.getAllFields(klass);
         }
 
         // Handling Sub classes
         if (isValidSchemaHierarchy(klass) && isSchemaDefinition(klass.getSuperclass())) {
-            return ReflectionUtils.getClassFields(klass);
+            return FieldUtils.getClassFields(klass);
         }
-        return ReflectionUtils.getAllFields(klass);
+        return FieldUtils.getAllFields(klass);
     }
 
     public SchemaReference parentReference(Class<?> klass) {
@@ -101,7 +101,7 @@ public class BuilderUtils {
     }
 
     public List<SchemaReference> childReferences(Class<?> klass, Reflections reflections) {
-        final var subTypes = ReflectionUtils.getImmediateSubTypes(reflections, klass);
+        final var subTypes = FieldUtils.getImmediateSubTypes(reflections, klass);
         return subTypes.stream().map(aClass -> {
             final var schemaReference = getSchemaReference(aClass);
             if (Objects.isNull(schemaReference)) {
@@ -134,18 +134,17 @@ public class BuilderUtils {
         return klass.isAnnotationPresent(SchemaDefinition.class);
     }
 
-    public boolean isOptional(final Class<?> klass) {
-        return klass.isAnnotationPresent(Optional.class);
-    }
+	public boolean isOptional(final Class<?> klass) {
+		return klass.isAnnotationPresent(Optional.class);
+	}
 
+	public boolean isOptional(final Field field) {
+		return field.isAnnotationPresent(Optional.class);
+	}
     public boolean isOptional(final AnnotatedType annotatedType) {
         return annotatedType.isAnnotationPresent(Optional.class);
     }
 
-
-    public boolean isOptional(final Field field) {
-        return field.isAnnotationPresent(Optional.class);
-    }
 
     public SchemaReference getSchemaReference(final Class<?> klass) {
         if (!klass.isAnnotationPresent(SchemaDefinition.class)) {
@@ -179,36 +178,35 @@ public class BuilderUtils {
         return qualifiers;
     }
 
-    public Set<QualifierInfo> getQualifiers(final AnnotatedType annotatedType) {
-        Set<QualifierInfo> qualifiers = new HashSet<>();
-        if (annotatedType.isAnnotationPresent(Encrypted.class)) {
-            qualifiers.add(new EncryptedQualifier());
-        }
-        if (annotatedType.isAnnotationPresent(PII.class)) {
-            qualifiers.add(new PIIQualifier());
-        }
-        if (annotatedType.isAnnotationPresent(ShortLived.class)) {
-            final var shortLived = annotatedType.getAnnotation(ShortLived.class);
-            qualifiers.add(new ShortLivedQualifier(shortLived.ttlSeconds()));
-        }
-        return qualifiers;
-    }
+	public Set<QualifierInfo> getQualifiers(final AnnotatedType annotatedType) {
+		Set<QualifierInfo> qualifiers = new HashSet<>();
+		if (annotatedType.isAnnotationPresent(Encrypted.class)) {
+			qualifiers.add(new EncryptedQualifier());
+		}
+		if (annotatedType.isAnnotationPresent(PII.class)) {
+			qualifiers.add(new PIIQualifier());
+		}
+		if (annotatedType.isAnnotationPresent(ShortLived.class)) {
+			final var shortLived = annotatedType.getAnnotation(ShortLived.class);
+			qualifiers.add(new ShortLivedQualifier(shortLived.ttlSeconds()));
+		}
+		return qualifiers;
+	}
 
-    public Set<QualifierInfo> getQualifiers(final Field field) {
-        Set<QualifierInfo> qualifiers = new HashSet<>();
-        if (field.isAnnotationPresent(Encrypted.class)) {
-            qualifiers.add(new EncryptedQualifier());
-        }
-        if (field.isAnnotationPresent(PII.class)) {
-            qualifiers.add(new PIIQualifier());
-        }
-        if (field.isAnnotationPresent(ShortLived.class)) {
-            final var shortLived = field.getAnnotation(ShortLived.class);
-            qualifiers.add(new ShortLivedQualifier(shortLived.ttlSeconds()));
-        }
-        return qualifiers;
-    }
-
+	public Set<QualifierInfo> getQualifiers(final Field field) {
+		Set<QualifierInfo> qualifiers = new HashSet<>();
+		if (field.isAnnotationPresent(Encrypted.class)) {
+			qualifiers.add(new EncryptedQualifier());
+		}
+		if (field.isAnnotationPresent(PII.class)) {
+			qualifiers.add(new PIIQualifier());
+		}
+		if (field.isAnnotationPresent(ShortLived.class)) {
+			final var shortLived = field.getAnnotation(ShortLived.class);
+			qualifiers.add(new ShortLivedQualifier(shortLived.ttlSeconds()));
+		}
+		return qualifiers;
+	}
 
     private boolean isValidSchemaHierarchy(Class<?> klass) {
         boolean nonSchemaDef = false;

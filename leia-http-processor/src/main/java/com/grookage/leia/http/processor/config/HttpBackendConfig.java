@@ -20,6 +20,7 @@ import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import lombok.Builder;
 import lombok.Data;
+import lombok.ToString;
 import lombok.extern.jackson.Jacksonized;
 
 import javax.validation.constraints.NotEmpty;
@@ -31,29 +32,30 @@ import java.util.Map;
 @Jacksonized
 @JsonIgnoreProperties(ignoreUnknown = true)
 public class HttpBackendConfig {
-    @NotEmpty
-    String backendName;
-    String backendId;
-    String host;
-    int port;
-    boolean secure;
-    String uri;
-    String requestEnv;
-    @NotEmpty
-    String hasher;
-    @Builder.Default
-    BackendType backendType = BackendType.SYNC;
-    @Builder.Default
-    int retryCount = 3;
-    @Builder.Default
-    String queuePath = "leia-messages";
-    @Builder.Default
-    int queueThreshold = 5;
-    @Builder.Default
-    Map<String, String> headers = new HashMap<>();
+	@NotEmpty
+	String backendName;
+	String backendId;
+	String host;
+	int port;
+	boolean secure;
+	String uri;
+	String requestEnv;
+	@NotEmpty
+	@ToString.Exclude
+	String hasher;
+	@Builder.Default
+	BackendType backendType = BackendType.SYNC;
+	@Builder.Default
+	int retryCount = 3;
+	@Builder.Default
+	String queuePath = "leia-messages";
+	@Builder.Default
+	int queueThreshold = 5;
+	@Builder.Default
+	Map<String, String> headers = new HashMap<>();
 
-    @JsonIgnore
-    public boolean headersProvided() {
-        return null != headers && !headers.isEmpty();
-    }
+	@JsonIgnore
+	public boolean headersProvided() {
+		return null != headers && !headers.isEmpty();
+	}
 }

@@ -32,27 +32,12 @@ import javax.validation.constraints.NotNull;
 @NoArgsConstructor
 @JsonIgnoreProperties(ignoreUnknown = true)
 public class SchemaHistoryItem {
-
-    @NotNull SchemaEvent schemaEvent;
-    @NotNull long timestamp;
-    @NotBlank String configUpdaterName;
-    String configUpdaterId;
-    String configUpdaterEmail;
-
-    @Override
-    public int hashCode() {
-        return this.getSchemaEvent().hashCode();
-    }
-
-    @Override
-    public boolean equals(Object obj) {
-        if (this == obj) {
-            return true;
-        }
-        if (obj == null || obj.getClass() != this.getClass()) {
-            return false;
-        }
-        final var thatKey = (SchemaHistoryItem) obj;
-        return (thatKey.getSchemaEvent().equals(this.schemaEvent));
-    }
+	@NotNull
+	SchemaEvent schemaEvent;
+	@NotNull
+	long timestamp;
+	@NotBlank
+	String configUpdaterName;
+	String configUpdaterId;
+	String configUpdaterEmail;
 }

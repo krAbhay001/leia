@@ -33,9 +33,7 @@ import lombok.NoArgsConstructor;
 import javax.validation.constraints.NotBlank;
 import javax.validation.constraints.NotEmpty;
 import javax.validation.constraints.NotNull;
-import java.util.ArrayList;
 import java.util.HashSet;
-import java.util.List;
 import java.util.Set;
 
 @AllArgsConstructor
@@ -44,42 +42,42 @@ import java.util.Set;
 @NoArgsConstructor
 @JsonIgnoreProperties(ignoreUnknown = true)
 public class StoredElasticRecord {
-    @NotBlank
-    private String orgId;
-    @NotBlank
-    private String namespace;
-    @NotBlank
-    private String tenantId;
-    @NotBlank
-    private String schemaName;
-    @NotBlank
-    private String version;
-    @NotBlank
-    private String type;
-    String description;
-    @NotNull
-    SchemaState schemaState;
-    @NotNull
-    SchemaType schemaType;
-    SchemaValidationType validationType = SchemaValidationType.MATCHING;
-    @NotEmpty
-    Set<SchemaAttribute> attributes;
-    @Builder.Default
-    Set<TransformationTarget> transformationTargets = Set.of();
-    @Builder.Default
-    Set<SchemaHistoryItem> histories = new HashSet<>();
-    @Builder.Default
-    List<String> tags = new ArrayList<>();
+	@NotBlank
+	private String orgId;
+	@NotBlank
+	private String namespace;
+	@NotBlank
+	private String tenantId;
+	@NotBlank
+	private String schemaName;
+	@NotBlank
+	private String version;
+	@NotBlank
+	private String type;
+	String description;
+	@NotNull
+	SchemaState schemaState;
+	@NotNull
+	SchemaType schemaType;
+	SchemaValidationType validationType = SchemaValidationType.MATCHING;
+	@NotEmpty
+	Set<SchemaAttribute> attributes;
+	@Builder.Default
+	Set<TransformationTarget> transformationTargets = Set.of();
+	@Builder.Default
+	Set<SchemaHistoryItem> histories = new HashSet<>();
+	@Builder.Default
+	Set<String> tags = new HashSet<>();
 
-    @JsonIgnore
-    public SchemaKey getSchemaKey() {
-        return SchemaKey.builder()
-                .orgId(orgId)
-                .namespace(namespace)
-                .tenantId(tenantId)
-                .schemaName(schemaName)
-                .version(version)
-                .type(type)
-                .build();
-    }
+	@JsonIgnore
+	public SchemaKey getSchemaKey() {
+		return SchemaKey.builder()
+				.orgId(orgId)
+				.namespace(namespace)
+				.tenantId(tenantId)
+				.schemaName(schemaName)
+				.version(version)
+				.type(type)
+				.build();
+	}
 }

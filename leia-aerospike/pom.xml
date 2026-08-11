@@ -22,11 +22,12 @@
     <parent>
         <groupId>com.grookage.leia</groupId>
         <artifactId>leia-parent</artifactId>
-        <version>0.0.1-RC23-SNAPSHOT</version>
+        <version>1.1.2</version>
         <relativePath>../leia-parent</relativePath>
     </parent>
 
     <artifactId>leia-aerospike</artifactId>
+    <name>Leia Aerospike</name>
 
     <properties>
         <aerospike.version>9.0.1</aerospike.version>

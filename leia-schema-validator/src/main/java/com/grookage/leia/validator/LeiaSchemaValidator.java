@@ -16,18 +16,15 @@
 
 package com.grookage.leia.validator;
 
+import com.grookage.leia.common.validation.LeiaSchemaClassProvider;
 import com.grookage.leia.models.schema.SchemaKey;
 
-import java.util.Optional;
+public interface LeiaSchemaValidator extends LeiaSchemaClassProvider {
 
-public interface LeiaSchemaValidator {
+	void start();
 
-    void start();
+	void stop();
 
-    void stop();
-
-    boolean valid(SchemaKey schemaKey);
-
-    Optional<Class<?>> getKlass(SchemaKey schemaKey);
+	boolean valid(SchemaKey schemaKey);
 
 }

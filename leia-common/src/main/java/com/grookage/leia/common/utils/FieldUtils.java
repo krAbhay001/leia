@@ -26,14 +26,14 @@ import java.util.*;
 import java.util.stream.Collectors;
 
 @UtilityClass
-public class ReflectionUtils {
-    public List<Field> getAllFields(final Class<?> type) {
-        List<Field> fields = new ArrayList<>();
-        for (Class<?> c = type; c != null; c = c.getSuperclass()) {
+public class FieldUtils {
+	public List<Field> getAllFields(final Class<?> type) {
+		List<Field> fields = new ArrayList<>();
+		for (Class<?> c = type; c != null; c = c.getSuperclass()) {
             fields.addAll(getClassFields(c));
-        }
-        return fields;
-    }
+		}
+		return fields;
+	}
 
     public List<Field> getClassFields(final Class<?> klass) {
         return Arrays.stream(klass.getDeclaredFields())
@@ -41,21 +41,20 @@ public class ReflectionUtils {
                 .toList();
     }
 
-    private boolean isNonSerializable(final Field field) {
-        if (field.isAnnotationPresent(JsonIgnore.class)) {
-            return true;
-        }
-        int modifiers = field.getModifiers();
-        return Modifier.isStatic(modifiers) || Modifier.isTransient(modifiers);
-    }
+	private boolean isNonSerializable(final Field field) {
+		if (field.isAnnotationPresent(JsonIgnore.class)) {
+			return true;
+		}
+		int modifiers = field.getModifiers();
+		return Modifier.isStatic(modifiers) || Modifier.isTransient(modifiers);
+	}
 
-    public Optional<Field> filter(final String name,
-                                  final List<Field> fields) {
-        return fields.stream()
-                .filter(each -> each.getName().equals(name))
-                .findFirst();
-    }
-
+	public Optional<Field> filter(final String name,
+	                              final List<Field> fields) {
+		return fields.stream()
+				.filter(each -> each.getName().equals(name))
+				.findFirst();
+	}
     public Set<Class<?>> getImmediateSubTypes(Reflections reflections, Class<?> klass) {
         return reflections.getSubTypesOf(klass).stream()
                 .filter(each -> each.getSuperclass().equals(klass))

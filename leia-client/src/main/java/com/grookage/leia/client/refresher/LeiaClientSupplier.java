@@ -19,6 +19,7 @@ package com.grookage.leia.client.refresher;
 import com.google.common.base.Strings;
 import com.google.common.net.HttpHeaders;
 import com.grookage.korg.config.KorgHttpConfiguration;
+import com.grookage.korg.endpoint.KorgEndPointProvider;
 import com.grookage.korg.suppliers.KorgHttpSupplier;
 import com.grookage.leia.client.datasource.LeiaClientRequest;
 import com.grookage.leia.models.request.SearchRequest;
@@ -39,43 +40,44 @@ import java.util.function.Supplier;
 @Getter
 public class LeiaClientSupplier extends KorgHttpSupplier<List<SchemaDetails>> {
 
-    private final Supplier<LeiaClientRequest> clientRequestSupplier;
-    private final Supplier<String> authHeaderSupplier;
+	private final Supplier<LeiaClientRequest> clientRequestSupplier;
+	private final Supplier<String> authHeaderSupplier;
 
-    @Builder
-    public LeiaClientSupplier(KorgHttpConfiguration httpConfiguration,
-                              Supplier<LeiaClientRequest> clientRequestSupplier,
-                              Supplier<String> authHeaderSupplier) {
-        super(httpConfiguration, LeiaClientMarshaller.getInstance(), "getClientNamespaces");
-        this.clientRequestSupplier = clientRequestSupplier;
-        this.authHeaderSupplier = authHeaderSupplier;
-    }
+	@Builder
+	public LeiaClientSupplier(KorgHttpConfiguration httpConfiguration,
+	                          KorgEndPointProvider endPointProvider,
+	                          Supplier<LeiaClientRequest> clientRequestSupplier,
+	                          Supplier<String> authHeaderSupplier) {
+		super(httpConfiguration, LeiaClientMarshaller.getInstance(), endPointProvider, "getClientNamespaces");
+		this.clientRequestSupplier = clientRequestSupplier;
+		this.authHeaderSupplier = authHeaderSupplier;
+	}
 
-    @Override
-    protected String url() {
-        return "/v1/schema/details/all";
-    }
+	@Override
+	protected String url() {
+		return "/v1/schema/details/all";
+	}
 
-    @Override
-    @SneakyThrows
-    protected Request getRequest(String url) {
-        final var clientRequest = clientRequestSupplier.get();
-        final var requestBody = RequestBody.create(
-                okhttp3.MediaType.parse("application/json; charset=utf-8"),
-                MapperUtils.mapper().writeValueAsString(SearchRequest.builder()
-                        .namespaces(clientRequest.getNamespaces())
-                        .tenants(clientRequest.getTenants())
-                        .orgs(clientRequest.getOrgs())
-                        .schemaNames(clientRequest.getSchemaNames())
-                        .states(Set.of(SchemaState.APPROVED))
-                        .build()));
-        final var requestBuilder = new Request.Builder()
-                .url(endPoint(url))
-                .post(requestBody);
-        final var suppliedHeader = authHeaderSupplier.get();
-        if (!Strings.isNullOrEmpty(suppliedHeader)) {
-            requestBuilder.addHeader(HttpHeaders.AUTHORIZATION, suppliedHeader);
-        }
-        return requestBuilder.build();
-    }
+	@Override
+	@SneakyThrows
+	protected Request getRequest(String url) {
+		final var clientRequest = clientRequestSupplier.get();
+		final var requestBody = RequestBody.create(
+				okhttp3.MediaType.parse("application/json; charset=utf-8"),
+				MapperUtils.mapper().writeValueAsString(SearchRequest.builder()
+						.namespaces(clientRequest.getNamespaces())
+						.tenants(clientRequest.getTenants())
+						.orgIds(clientRequest.getOrgIds())
+						.schemaNames(clientRequest.getSchemaNames())
+						.states(Set.of(SchemaState.APPROVED))
+						.build()));
+		final var requestBuilder = new Request.Builder()
+				.url(endPoint(url))
+				.post(requestBody);
+		final var suppliedHeader = authHeaderSupplier.get();
+		if (!Strings.isNullOrEmpty(suppliedHeader)) {
+			requestBuilder.addHeader(HttpHeaders.AUTHORIZATION, suppliedHeader);
+		}
+		return requestBuilder.build();
+	}
 }

@@ -21,36 +21,32 @@ import lombok.AllArgsConstructor;
 import lombok.Data;
 
 import java.util.Arrays;
-import java.util.List;
 import java.util.Locale;
-import java.util.Objects;
-import java.util.function.Supplier;
+import java.util.Set;
+import java.util.stream.Collectors;
 
 @AllArgsConstructor
 @Data
 public class TagBasedNameResolver implements BackendNameResolver {
 
-    private static final String BACKEND_TAG = "backend";
-    private static final String TAG_SEPARATOR = "-";
+	private static final String BACKEND_TAG = "backend";
+	private static final String TAG_SEPARATOR = "-";
 
-    private final Supplier<List<String>> backends;
-
-    @Override
-    public List<String> getEligibleBackends(LeiaMessage leiaMessage) {
-        final var tags = leiaMessage.getTags();
-        if (null == tags || tags.isEmpty()) {
-            return List.of();
-        }
-        final var backendTag = tags.stream()
-                .filter(each -> each.contains(BACKEND_TAG)).findFirst().orElse(null);
-        if (null == backendTag) {
-            return List.of();
-        }
-        final List<String> eligibleBackends = null == backends ? List.of() :
-                Objects.requireNonNullElse(backends.get(), List.of());
-        final var configuredBackends = Arrays.asList(backendTag.toUpperCase(Locale.ROOT).substring(backendTag.lastIndexOf(TAG_SEPARATOR) + 1).split("\\s*::\\s*"));
-        return eligibleBackends.stream()
-                .filter(configuredBackends::contains)
-                .toList();
-    }
+	@Override
+	public Set<String> getEligibleBackends(LeiaMessage leiaMessage) {
+		final var tags = leiaMessage.getTags();
+		if (null == tags || tags.isEmpty()) {
+			return Set.of();
+		}
+		final var backendTag = tags.stream()
+				.filter(each -> each.contains(BACKEND_TAG)).findFirst().orElse(null);
+		if (null == backendTag) {
+			return Set.of();
+		}
+		return Arrays.stream(
+						backendTag.toUpperCase(Locale.ROOT)
+								.substring(backendTag.lastIndexOf(TAG_SEPARATOR) + 1)
+								.split("\\s*::\\s*"))
+				.collect(Collectors.toSet());
+	}
 }

@@ -30,7 +30,6 @@ import lombok.NoArgsConstructor;
 import javax.validation.Valid;
 import javax.validation.constraints.NotEmpty;
 import javax.validation.constraints.NotNull;
-import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
@@ -41,6 +40,9 @@ import java.util.Set;
 @NoArgsConstructor
 @JsonIgnoreProperties(ignoreUnknown = true)
 public class SchemaDetails {
+    @NotNull
+    @Valid
+    private SchemaKey schemaKey;
     String description;
     @NotNull
     SchemaState schemaState;
@@ -56,21 +58,18 @@ public class SchemaDetails {
     @Builder.Default
     Set<SchemaHistoryItem> histories = new HashSet<>();
     @Builder.Default
-    List<String> tags = new ArrayList<>();
-    @NotNull
-    @Valid
-    private SchemaKey schemaKey;
+    Set<String> tags = new HashSet<>();
 
-    @JsonIgnore
-    public String getReferenceId() {
-        return schemaKey.getReferenceId();
-    }
+	@JsonIgnore
+	public String getReferenceId() {
+		return schemaKey.getReferenceId();
+	}
 
-    @JsonIgnore
-    public synchronized void addHistory(SchemaHistoryItem historyItem) {
-        if (null == histories) {
-            histories = new HashSet<>();
-        }
-        histories.add(historyItem);
-    }
+	@JsonIgnore
+	public synchronized void addHistory(SchemaHistoryItem historyItem) {
+		if (null == histories) {
+			histories = new HashSet<>();
+		}
+		histories.add(historyItem);
+	}
 }

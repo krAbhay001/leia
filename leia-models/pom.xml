@@ -21,10 +21,11 @@
     <parent>
         <groupId>com.grookage.leia</groupId>
         <artifactId>leia-parent</artifactId>
-        <version>0.0.1-RC23-SNAPSHOT</version>
+        <version>1.1.2</version>
         <relativePath>../leia-parent</relativePath>
     </parent>
 
+    <name>Leia Models</name>
     <artifactId>leia-models</artifactId>
 
     <properties>
@@ -86,7 +87,7 @@
 
         <dependency>
             <groupId>io.appform.rules</groupId>
-            <artifactId>json-rules</artifactId>
+            <artifactId>json-rules-core</artifactId>
         </dependency>
 
         <dependency>

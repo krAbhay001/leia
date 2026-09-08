@@ -1,0 +1,43 @@
+.default: &default
+  only:
+    - merge_requests
+    - web
+
+.default_tag: &default_tag
+  tags:
+    - backend-docker-large
+
+image: docker.phonepe.com/ci/ubuntu/jammy/jdk/openjdk/17/maven/3.9.9:latest
+
+stages:
+  - build
+  - quality
+  - deploy
+  - merge
+
+build_snapshot:
+  stage: build
+  <<: *default
+  <<: *default_tag
+  when: manual
+  script:
+    - mvn clean package -U -DskipTests=true
+
+merge_ready:
+  stage: quality
+  <<: *default
+  <<: *default_tag
+  when: manual
+  allow_failure: false
+  script:
+    - mvn verify -U -Pquality_check -Dsonar.pullrequest.key=$CI_MERGE_REQUEST_IID -Dsonar.pullrequest.branch=$CI_MERGE_REQUEST_SOURCE_BRANCH_NAME -Dsonar.pullrequest.base=$CI_MERGE_REQUEST_TARGET_BRANCH_NAME
+
+deploy_snapshot:
+  stage: deploy
+  <<: *default_tag
+  only:
+    - stage
+  when: manual
+  allow_failure: false
+  script:
+    - mvn deploy -U -DskipTests

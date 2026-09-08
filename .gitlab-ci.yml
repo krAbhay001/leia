@@ -20,6 +20,7 @@ build_snapshot:
   <<: *default
   <<: *default_tag
   when: manual
+  allow_failure: false
   script:
     - mvn clean package -U -DskipTests=true
 

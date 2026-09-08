@@ -45,6 +45,13 @@
             <groupId>com.fasterxml.jackson.core</groupId>
         </dependency>
 
+
+        <dependency>
+            <artifactId>junit-jupiter</artifactId>
+            <groupId>org.junit.jupiter</groupId>
+        </dependency>
+
+
         <dependency>
             <groupId>co.elastic.clients</groupId>
             <artifactId>elasticsearch-java</artifactId>

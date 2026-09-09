@@ -37,8 +37,11 @@ deploy_snapshot:
   stage: deploy
   <<: *default_tag
   only:
-    - stage
+    - web
   when: manual
   allow_failure: false
   script:
-    - mvn deploy -U -DskipTests
+    - "VERSION=$(mvn -U -q help:evaluate -Dexpression=project.version -DforceStdout)"
+    - "NEW_VERSION=$(echo ${VERSION/SNAPSHOT/$CI_COMMIT_REF_NAME-SNAPSHOT} | tr '[:lower:]' '[:upper:]' | tr '/' '-')"
+    - "mvn -U versions:set -DgenerateBackupPoms=false -DnewVersion=$NEW_VERSION"
+    - "mvn -U deploy -DskipTests"
